@@ -24,5 +24,16 @@
 
 ;;; Code:
 
+(setq views-file (concat user-emacs-directory "views.el"))
+
+(defun views--add (name view))
+(defun views--remove (name))
+
+(defun views--current-view ())
+(defun views--load-views ())
+
+(defun views-push () (interactive))
+(defun views-pop () (interactive))
+
 
 (provide 'views)
