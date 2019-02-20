@@ -100,6 +100,18 @@
 ;; window configuration ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun views--collect-buffer-info (buf)
+  "Collect information to save about buffer BUF."
+  (with-current-buffer buf
+    (cond
+     (buffer-file-name
+      (list 'file buffer-file-name (point)))
+     ((eq major-mode 'dired-mode)
+      (list 'file default-directory (point)))
+     (t
+      (list 'buffer (buffer-name) (point))))))
+
+
 (defun views--parse-window-tree (wt)
   "Construct a view from a window-tree.
 
@@ -115,18 +127,35 @@ Currently saves:
           (cons 'vertical (-map #'views--parse-window-tree (cddr wt)))
         (cons 'horizontal (-map #'views--parse-window-tree (cddr wt))))
     ;; if WT is not a cons-pair, it is a leaf window
-    (with-current-buffer (window-buffer wt)
-      (cond
-       (buffer-file-name
-        (list 'file buffer-file-name (point)))
-       ((eq major-mode 'dired-mode)
-        (list 'file default-directory (point)))
-       (t
-        (list 'buffer (buffer-name) (point)))))))
+    (views--collect-buffer-info (window-buffer wt))))
 
 (defun views--current-view ()
   "Get the view for the current window."
   (views--parse-window-tree (car (window-tree))))
+
+(defun views--restore-file (view)
+  "Restore file saved in VIEW."
+  (let* ((name (views--view-name view))
+         (buffer (get-buffer name)))
+    (cond
+     (buffer
+      ;; if a buffer visiting the file already exists, use that
+      (switch-to-buffer buffer nil 'force-same-window))
+     ((file-exists-p name)
+      ;; otherwise open the file if it exists on disk
+      (find-file name))))
+
+  ;; restore point position if saved
+  (when-let ((p (views--view-point view)))
+    (goto-char p)))
+
+(defun views--restore-buffer (view)
+  "Restore buffer stored in VIEW."
+  (switch-to-buffer (views--view-name view))
+
+  ;; restore point position if saved
+  (when-let ((p (views--view-point view)))
+    (goto-char p)))
 
 (defun views--set-view-recur (view)
   "Set VIEW recursively."
@@ -161,25 +190,11 @@ Currently saves:
 
    ;; current child is a window showing a file
    ((eq (views--view-type view) 'file)
-    (let* ((name (views--view-name view))
-           (buffer (get-buffer name)))
-      (cond
-       (buffer
-        ;; if a buffer visiting the file already exists, use that
-        (switch-to-buffer buffer nil 'force-same-window))
-       ((file-exists-p name)
-        ;; otherwise open the file if it exists on disk
-        (find-file name))))
-    ;; restore point position if saved
-    (when-let ((p (views--view-point view)))
-      (goto-char p)))
+    (views--restore-file view))
 
    ;; current child is a window showing a non-file buffer
    ((eq (views--view-type view) 'buffer)
-    (switch-to-buffer (views--view-name view))
-    ;; restore point position if saved
-    (when-let ((p (views--view-point view)))
-      (goto-char p)))))
+    (views--restore-buffer view))))
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME."
