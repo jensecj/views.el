@@ -118,9 +118,68 @@ Currently saves:
   "Get the view for the current window."
   (views--parse-window-tree (car (window-tree))))
 
+(defun views--set-view-recur (view)
+  "Set VIEW recursively."
+  (cond
+   ;; current child is a vertical split, walk children recursively
+   ((eq (views--view-type view) 'vertical)
+    (let* ((wnd1 (selected-window))
+           (wnd2 (split-window-vertically))
+           (views (cdr view))
+           (v (pop views)))
+      (with-selected-window wnd1
+        (views--set-view-recur v))
+      (while (setq v (pop views))
+        (with-selected-window wnd2
+          (views--set-view-recur v))
+        (when views
+          (setq wnd2 (split-window-vertically))))))
+
+   ;; current child is a horizontal split, walk children recursively
+   ((eq (views--view-type view) 'horizontal)
+    (let* ((wnd1 (selected-window))
+           (wnd2 (split-window-horizontally))
+           (views (cdr view))
+           (v (pop views)))
+      (with-selected-window wnd1
+        (views--set-view-recur v))
+      (while (setq v (pop views))
+        (with-selected-window wnd2
+          (views--set-view-recur v))
+        (when views
+          (setq wnd2 (split-window-horizontally))))))
+
+   ;; current child is a window showing a file
+   ((eq (views--view-type view) 'file)
+    (let* ((name (views--view-name view))
+           (buffer (get-buffer name)))
+      (cond
+       (buffer
+        ;; if a buffer visiting the file already exists, use that
+        (switch-to-buffer buffer nil 'force-same-window))
+       ((file-exists-p name)
+        ;; otherwise open the file if it exists on disk
+        (find-file name))))
+    ;; restore point position if saved
+    (when-let ((p (views--view-point view)))
+      (goto-char p)))
+
+   ;; current child is a window showing a non-file buffer
+   ((eq (views--view-type view) 'buffer)
+    (switch-to-buffer (views--view-name view))
+    ;; restore point position if saved
+    (when-let ((p (views--view-point view)))
+      (goto-char p)))))
 
 (defun views--set-view (name)
-  "Change the current window-configuration to the view of NAME.")
+  "Change the current window-configuration to the view of NAME."
+  (let* ((views (views--load-views))
+         (view (ht-get views name)))
+    (if view
+        (let ((inhibit-message t))
+          (delete-other-windows)
+          (views--set-view-recur view))
+      (message "view '%s' not found" name))))
 
 ;;;;;;;;;;;;;;;
 ;; interface ;;
