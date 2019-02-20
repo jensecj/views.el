@@ -64,6 +64,28 @@
     (ht-remove views name)
     (views--save-views views)))
 
+;;;;;;;;;;;;;;;
+;; accessors ;;
+;;;;;;;;;;;;;;;
+
+(defun views--view-type (view)
+  "Get the type of VIEW."
+  (let ((typ (car view)))
+    (when (symbolp typ)
+      typ)))
+
+(defun views--view-name (view)
+  "Get the name of VIEW."
+  (let ((name (nth 1 view)))
+    (when (stringp name)
+      name)))
+
+(defun views--view-point (view)
+  "Get the location of point in VIEW."
+  (let ((p (nth 2 view)))
+    (when (numberp p)
+      p)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; window configuration ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
