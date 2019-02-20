@@ -63,5 +63,43 @@
     (ht-remove views name)
     (views--save-views views)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; window configuration ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun views--current-view ()
+  "Get the view for the current window.")
+
+(defun views--set-view (name)
+  "Change the current window-configuration to the view of NAME.")
+
+;;;;;;;;;;;;;;;
+;; interface ;;
+;;;;;;;;;;;;;;;
+
+(defun views-push ()
+  "Save the current window view."
+  (interactive)
+  (let* ((views (ht-keys (views--load-views)))
+         (name (completing-read "View name: " views))
+         (view (views--current-view)))
+    (if (member name views)
+        (message "that name is already in use")
+      (views--add name view))))
+
+(defun views-pop ()
+  "remove a view from saved views."
+  (interactive)
+  (let* ((views (ht-keys (views--load-views)))
+         (name (completing-read "Pick view: " views nil t)))
+    (views--remove name)))
+
+(defun views-switch ()
+  "Switch to a saved view."
+  (interactive)
+  (let* ((views (views--load-views))
+         (view (completing-read "Pick view: " views nil t)))
+    (when view
+      (views--set-view view))))
 
 (provide 'views)
