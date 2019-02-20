@@ -51,7 +51,7 @@
   (unless (f-exists-p views-file)
     (f-touch views-file))
   (with-temp-file views-file
-    (prin1 views (current-buffer))))
+    (pp views (current-buffer))))
 
 (defun views--load-views ()
   "Load saved views from `views-file'."
