@@ -3,7 +3,7 @@
 ;; Copyright (C) 2019 Jens Christian Jensen
 
 ;; Author: Jens Christian Jensen <jensecj@gmail.com>
-;; Keywords: views, workgroup
+;; Keywords: views, workgroups, windows
 ;; Package-Version: 20190220
 ;; Version: 0.1.0
 
@@ -33,7 +33,8 @@
 ;; persisting views ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar views-file (concat user-emacs-directory "views.el"))
+(defvar views-file (concat user-emacs-directory "views.el")
+  "File used for saving views to disk.")
 
 (defun views--save-views (views)
   "Save VIEWS to `views-file'."
@@ -52,7 +53,7 @@
     (ht)))
 
 (defun views--add (name view)
-  "Add a view to the list of saved views."
+  "Add VIEW with NAME to the list of saved views."
   (let ((views (views--load-views)))
     (ht-set views name view)
     (views--save-views views)))
@@ -88,7 +89,7 @@
       (views--add name view))))
 
 (defun views-pop ()
-  "remove a view from saved views."
+  "Remove a view from saved views."
   (interactive)
   (let* ((views (ht-keys (views--load-views)))
          (name (completing-read "Pick view: " views nil t)))
