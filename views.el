@@ -90,8 +90,34 @@
 ;; window configuration ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun views--parse-window-tree (wt)
+  "Construct a view from a window-tree.
+
+Currently saves:
+- Type of window (split / file-visiting / non file-visiting)
+- Location of point in the buffer. "
+  ;; if the window-tree is a cons-pair, it is split into multiple windows, and
+  ;; we need to figure out what they are.
+  (if (consp wt)
+      ;; if (car window-tree) is `t', the window is split vertically, if it is
+      ;; `nil', it is split horizontally.
+      (if (eq (car wt) t)
+          (cons 'vertical (-map #'views--parse-window-tree (cddr wt)))
+        (cons 'horizontal (-map #'views--parse-window-tree (cddr wt))))
+    ;; if WT is not a cons-pair, it is a leaf window
+    (with-current-buffer (window-buffer wt)
+      (cond
+       (buffer-file-name
+        (list 'file buffer-file-name (point)))
+       ((eq major-mode 'dired-mode)
+        (list 'file default-directory (point)))
+       (t
+        (list 'buffer (buffer-name) (point)))))))
+
 (defun views--current-view ()
-  "Get the view for the current window.")
+  "Get the view for the current window."
+  (views--parse-window-tree (car (window-tree))))
+
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME.")
