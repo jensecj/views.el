@@ -80,21 +80,19 @@
 
 (defun views--view-type (view)
   "Get the type of VIEW."
-  (let ((typ (car view)))
-    (when (symbolp typ)
-      typ)))
+  (ht-get view :type))
 
 (defun views--view-name (view)
   "Get the name of VIEW."
-  (let ((name (nth 1 view)))
-    (when (stringp name)
-      name)))
+  (ht-get view :name))
 
 (defun views--view-point (view)
   "Get the location of point in VIEW."
-  (let ((p (nth 2 view)))
-    (when (numberp p)
-      p)))
+  (ht-get view :point))
+
+(defun views--view-subwindows (view)
+  "Get the subwindows stored in a split window VIEW"
+  (ht-get view :subwindows))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; window configuration ;;
@@ -105,12 +103,11 @@
   (with-current-buffer buf
     (cond
      (buffer-file-name
-      (list 'file buffer-file-name (point)))
+      (ht (:type 'file) (:name buffer-file-name) (:point (point))))
      ((eq major-mode 'dired-mode)
-      (list 'file default-directory (point)))
+      (ht (:type 'file) (:name default-directory) (:point (point))))
      (t
-      (list 'buffer (buffer-name) (point))))))
-
+      (ht (:type 'buffer) (:name (buffer-name)) (:point (point)))))))
 
 (defun views--parse-window-tree (wt)
   "Construct a view from a window-tree.
@@ -124,8 +121,8 @@ Currently saves:
       ;; if (car window-tree) is `t', the window is split vertically, if it is
       ;; `nil', it is split horizontally.
       (if (eq (car wt) t)
-          (cons 'vertical (-map #'views--parse-window-tree (cddr wt)))
-        (cons 'horizontal (-map #'views--parse-window-tree (cddr wt))))
+          (ht (:type 'vertical) (:subwindows (-map #'views--parse-window-tree (cddr wt))))
+        (ht (:type 'horizontal) (:subwindows (-map #'views--parse-window-tree (cddr wt)))))
     ;; if WT is not a cons-pair, it is a leaf window
     (views--collect-buffer-info (window-buffer wt))))
 
@@ -164,7 +161,7 @@ Currently saves:
    ((eq (views--view-type view) 'vertical)
     (let* ((wnd1 (selected-window))
            (wnd2 (split-window-vertically))
-           (views (cdr view))
+           (views (views--view-subwindows view))
            (v (pop views)))
       (with-selected-window wnd1
         (views--set-view-recur v))
@@ -178,7 +175,7 @@ Currently saves:
    ((eq (views--view-type view) 'horizontal)
     (let* ((wnd1 (selected-window))
            (wnd2 (split-window-horizontally))
-           (views (cdr view))
+           (views (views--view-subwindows view))
            (v (pop views)))
       (with-selected-window wnd1
         (views--set-view-recur v))
