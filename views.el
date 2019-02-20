@@ -82,6 +82,10 @@
   "Get the type of VIEW."
   (ht-get view :type))
 
+(defun views--view-path (view)
+  "Get the path of VIEW."
+  (ht-get view :path))
+
 (defun views--view-name (view)
   "Get the name of VIEW."
   (ht-get view :name))
@@ -103,9 +107,9 @@
   (with-current-buffer buf
     (cond
      (buffer-file-name
-      (ht (:type 'file) (:name buffer-file-name) (:point (point))))
+      (ht (:type 'file) (:path buffer-file-name) (:point (point))))
      ((eq major-mode 'dired-mode)
-      (ht (:type 'file) (:name default-directory) (:point (point))))
+      (ht (:type 'file) (:path default-directory) (:point (point))))
      (t
       (ht (:type 'buffer) (:name (buffer-name)) (:point (point)))))))
 
@@ -131,16 +135,16 @@ Currently saves:
   (views--parse-window-tree (car (window-tree))))
 
 (defun views--restore-file (view)
-  "Restore file saved in VIEW."
-  (let* ((name (views--view-name view))
-         (buffer (get-buffer name)))
+  "Restore file stored in VIEW."
+  (let* ((path (views--view-path view))
+         (buffer (get-buffer path)))
     (cond
      (buffer
       ;; if a buffer visiting the file already exists, use that
       (switch-to-buffer buffer nil 'force-same-window))
-     ((file-exists-p name)
+     ((file-exists-p path)
       ;; otherwise open the file if it exists on disk
-      (find-file name))))
+      (find-file path))))
 
   ;; restore point position if saved
   (when-let ((p (views--view-point view)))
