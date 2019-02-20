@@ -112,14 +112,14 @@
   (let* ((frame (window-frame window))
          (total-width (frame-width frame))
          (win-width (window-width window)))
-    (/ (float win-width) (float total-width))))
+    (string-to-number (format "%.2f" (/ (float win-width) (float total-width))))))
 
 (defun views--get-window-height (window)
   "Get the height of WINDOW in FRAME, in percent."
   (let* ((frame (window-frame window))
          (total-height (frame-height frame))
          (win-height (window-height window)))
-    (/ (float win-height) (float total-height))))
+    (string-to-number (format "%.2f" (/ (float win-height) (float total-height))))))
 
 (defun views--set-window-width (window percent)
   "Set the width of WINDOW from FRAME to PERCENT."
