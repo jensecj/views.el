@@ -25,12 +25,9 @@
 
 ;; Simple functionality for saving and restoring window configurations.
 
-;; Currently restores:
-;; - Window splits (not sizes or locations)
-;; - Closed buffers
-;; - Location of point
+;; See `views--collect-window-info' for what information is saved for each window.
 
-;; TODO: restore: split sizes, window locations, closed terminals
+;; TODO: restore: window locations, closed terminals
 
 ;;; Code:
 
@@ -94,31 +91,84 @@
   "Get the location of point in VIEW."
   (ht-get view :point))
 
+(defun views--view-width (view)
+  "Get the width of window VIEW."
+  (ht-get view :width))
+
+(defun views--view-height (view)
+  "Get the height of window VIEW."
+  (ht-get view :height))
+
 (defun views--view-subwindows (view)
-  "Get the subwindows stored in a split window VIEW"
+  "Get the subwindows stored in split window VIEW"
   (ht-get view :subwindows))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; window configuration ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun views--collect-buffer-info (buf)
+(defun views--get-window-width (window)
+  "Get the width of WINDOW in FRAME, in percentage."
+  (let* ((frame (window-frame window))
+         (total-width (frame-width frame))
+         (win-width (window-width window)))
+    (/ (float win-width) (float total-width))))
+
+(defun views--get-window-height (window)
+  "Get the height of WINDOW in FRAME, in percentage."
+  (let* ((frame (window-frame window))
+         (total-height (frame-height frame))
+         (win-height (window-height window)))
+    (/ (float win-height) (float total-height))))
+
+(defun views--set-window-width (window percent)
+  "Set WINDOW from FRAME to the percentage of WIDTH."
+  (let* ((frame (window-frame window))
+         (total-width (frame-width frame))
+         (percent-width (floor (* total-width percent)))
+         (cur-win-width (window-width window))
+         (delta (- percent-width cur-win-width)))
+    (window-resize window delta t)))
+
+(defun views--set-window-height (window percent)
+  "Set WINDOW from FRAME to the percentage of HEIGHT."
+  (let* ((frame (window-frame window))
+         (total-height (frame-height frame))
+         (percent-height (floor (* total-height percent)))
+         (cur-win-height (window-height window))
+         (delta (- percent-height cur-win-height)))
+    (window-resize window delta)))
+
+(defun views--collect-window-info (win)
   "Collect information to save about buffer BUF."
-  (with-current-buffer buf
+  (with-current-buffer (window-buffer win)
     (cond
      (buffer-file-name
-      (ht (:type 'file) (:path buffer-file-name) (:point (point))))
+      (ht (:type 'file)
+          (:path buffer-file-name)
+          (:point (point))
+          (:width (views--get-window-width win))
+          (:height (views--get-window-height win))))
      ((eq major-mode 'dired-mode)
-      (ht (:type 'file) (:path default-directory) (:point (point))))
+      (ht (:type 'file)
+          (:path default-directory)
+          (:point (point))
+          (:width (views--get-window-width win))
+          (:height (views--get-window-height win))))
      (t
-      (ht (:type 'buffer) (:name (buffer-name)) (:point (point)))))))
+      (ht (:type 'buffer)
+          (:name (buffer-name))
+          (:point (point))
+          (:width (views--get-window-width win))
+          (:height (views--get-window-height win)))))))
 
 (defun views--parse-window-tree (wt)
   "Construct a view from a window-tree.
 
 Currently saves:
 - Type of window (split / file-visiting / non file-visiting)
-- Location of point in the buffer. "
+- Location of point in the buffer.
+- Width/Height of windows."
   ;; if the window-tree is a cons-pair, it is split into multiple windows, and
   ;; we need to figure out what they are.
   (if (consp wt)
@@ -128,7 +178,7 @@ Currently saves:
           (ht (:type 'vertical) (:subwindows (-map #'views--parse-window-tree (cddr wt))))
         (ht (:type 'horizontal) (:subwindows (-map #'views--parse-window-tree (cddr wt)))))
     ;; if WT is not a cons-pair, it is a leaf window
-    (views--collect-buffer-info (window-buffer wt))))
+    (views--collect-window-info wt)))
 
 (defun views--current-view ()
   "Get the view for the current window."
@@ -146,6 +196,12 @@ Currently saves:
       ;; otherwise open the file if it exists on disk
       (find-file path))))
 
+  ;; restore width and height if saved
+  (when-let ((width (views--view-width view)))
+    (views--set-window-width (selected-window) width))
+  (when-let ((height (views--view-height view)))
+    (views--set-window-height (selected-window) height))
+
   ;; restore point position if saved
   (when-let ((p (views--view-point view)))
     (goto-char p)))
@@ -153,6 +209,12 @@ Currently saves:
 (defun views--restore-buffer (view)
   "Restore buffer stored in VIEW."
   (switch-to-buffer (views--view-name view))
+
+  ;; restore width and height if saved
+  (when-let ((width (views--view-width view)))
+    (views--set-window-width (selected-window) width))
+  (when-let ((height (views--view-height view)))
+    (views--set-window-height (selected-window) height))
 
   ;; restore point position if saved
   (when-let ((p (views--view-point view)))
