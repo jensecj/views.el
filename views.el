@@ -108,21 +108,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun views--get-window-width (window)
-  "Get the width of WINDOW in FRAME, in percentage."
+  "Get the width of WINDOW in FRAME, in percent."
   (let* ((frame (window-frame window))
          (total-width (frame-width frame))
          (win-width (window-width window)))
     (/ (float win-width) (float total-width))))
 
 (defun views--get-window-height (window)
-  "Get the height of WINDOW in FRAME, in percentage."
+  "Get the height of WINDOW in FRAME, in percent."
   (let* ((frame (window-frame window))
          (total-height (frame-height frame))
          (win-height (window-height window)))
     (/ (float win-height) (float total-height))))
 
 (defun views--set-window-width (window percent)
-  "Set WINDOW from FRAME to the percentage of WIDTH."
+  "Set the width of WINDOW from FRAME to PERCENT."
   (let* ((frame (window-frame window))
          (total-width (frame-width frame))
          (percent-width (floor (* total-width percent)))
@@ -131,7 +131,7 @@
     (window-resize window delta t)))
 
 (defun views--set-window-height (window percent)
-  "Set WINDOW from FRAME to the percentage of HEIGHT."
+  "Set the height of WINDOW from FRAME to PERCENT."
   (let* ((frame (window-frame window))
          (total-height (frame-height frame))
          (percent-height (floor (* total-height percent)))
@@ -140,7 +140,12 @@
     (window-resize window delta)))
 
 (defun views--collect-window-info (win)
-  "Collect information to save about buffer BUF."
+  "Collect information to save about buffer BUF.
+
+Currently saves:
+- What the buffer is visiting.
+- Location of point in the buffer.
+- Width and height of window."
   (with-current-buffer (window-buffer win)
     (cond
      (buffer-file-name
@@ -163,12 +168,7 @@
           (:height (views--get-window-height win)))))))
 
 (defun views--parse-window-tree (wt)
-  "Construct a view from a window-tree.
-
-Currently saves:
-- Type of window (split / file-visiting / non file-visiting)
-- Location of point in the buffer.
-- Width/Height of windows."
+  "Construct a view from a window-tree."
   ;; if the window-tree is a cons-pair, it is split into multiple windows, and
   ;; we need to figure out what they are.
   (if (consp wt)
