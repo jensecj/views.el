@@ -27,7 +27,7 @@
 
 ;; See `views--collect-window-info' for what information is saved for each window.
 
-;; TODO: restore: window locations, closed terminals
+;; TODO: restore: window locations
 
 ;;; Code:
 
@@ -145,7 +145,8 @@
 Currently saves:
 - What the buffer is visiting.
 - Location of point in the buffer.
-- Width and height of window."
+- Width and height of window.
+- Open terminals"
   (with-current-buffer (window-buffer win)
     (cond
      (buffer-file-name
@@ -160,10 +161,15 @@ Currently saves:
           (:point (point))
           (:width (views--get-window-width win))
           (:height (views--get-window-height win))))
+     ((eq major-mode 'term-mode)
+      (ht (:type 'term)
+          (:name (buffer-name))
+          (:path default-directory)
+          (:width (views--get-window-width win))
+          (:height (views--get-window-height win))))
      (t
       (ht (:type 'buffer)
           (:name (buffer-name))
-          (:point (point))
           (:width (views--get-window-width win))
           (:height (views--get-window-height win)))))))
 
@@ -214,11 +220,31 @@ Currently saves:
   (when-let ((width (views--view-width view)))
     (views--set-window-width (selected-window) width))
   (when-let ((height (views--view-height view)))
-    (views--set-window-height (selected-window) height))
+    (views--set-window-height (selected-window) height)))
 
-  ;; restore point position if saved
-  (when-let ((p (views--view-point view)))
-    (goto-char p)))
+(defun views--restore-term (view)
+  "Restore terminal stored in VIEW."
+  (let* ((name (views--view-name view))
+         (path (views--view-path view))
+         (buffer (get-buffer name)))
+    (cond
+     ;; if the terminal buffer already exists, switch to it
+     (buffer (switch-to-buffer buffer))
+     ;; otherwise we need to create it
+     (t
+      (let* ((default-directory path)
+             (clean-name (s-chop-suffix "*" (s-chop-prefix "*" name)))
+             (buffer (make-term clean-name shell-file-name)))
+        (with-current-buffer buffer
+          (term-mode)
+          (term-char-mode)
+          (switch-to-buffer (current-buffer)))))))
+
+  ;; restore width and height if saved
+  (when-let ((width (views--view-width view)))
+    (views--set-window-width (selected-window) width))
+  (when-let ((height (views--view-height view)))
+    (views--set-window-height (selected-window) height)))
 
 (defun views--set-view-recur (view)
   "Set VIEW recursively."
@@ -257,7 +283,11 @@ Currently saves:
 
    ;; current child is a window showing a non-file buffer
    ((eq (views--view-type view) 'buffer)
-    (views--restore-buffer view))))
+    (views--restore-buffer view))
+
+   ;; current child is a window for a terminal
+   ((eq (views--view-type view) 'term)
+    (views--restore-term view))))
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME."
