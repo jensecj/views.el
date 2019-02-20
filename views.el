@@ -6,6 +6,7 @@
 ;; Keywords: views, workgroups, windows
 ;; Package-Version: 20190220
 ;; Version: 0.1.0
+;; Package-Requires: ((emacs "25.1") (dash "2.14.1") (s "1.12.0") (f "0.20.0") (ht "2.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,6 +22,15 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+
+;; Simple functionality for saving and restoring window configurations.
+
+;; Currently restores:
+;; - Window splits (not sizes or locations)
+;; - Closed buffers
+;; - Location of point
+
+;; TODO: restore: split sizes, window locations, closed terminals
 
 ;;; Code:
 
