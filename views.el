@@ -222,23 +222,36 @@ Currently saves:
   (when-let ((height (views--view-height view)))
     (views--set-window-height (selected-window) height)))
 
+(defun views--make-term (name path)
+  "Create a terminal buffer with NAME and working directory PATH."
+  (cond
+   ;; create a term with multi-term is possible
+   ((fboundp #'multi-term)
+    (let ((default-directory path)
+          (term-buffer (multi-term-get-buffer)))
+      (setq multi-term-buffer-list (nconc multi-term-buffer-list (list term-buffer)))
+      (with-current-buffer term-buffer
+        (multi-term-internal)
+        (current-buffer))))
+   (t ;; otherwise use term.el functionality
+    (let ((default-directory path)
+          (term-buffer (make-term name shell-file-name)))
+      (with-current-buffer term-buffer
+        (term-mode)
+        (term-char-mode)
+        (current-buffer))))))
+
 (defun views--restore-term (view)
   "Restore terminal stored in VIEW."
   (let* ((name (views--view-name view))
+         (clean-name (s-chop-suffix "*" (s-chop-prefix "*" name)))
          (path (views--view-path view))
          (buffer (get-buffer name)))
     (cond
      ;; if the terminal buffer already exists, switch to it
      (buffer (switch-to-buffer buffer))
-     ;; otherwise we need to create it
-     (t
-      (let* ((default-directory path)
-             (clean-name (s-chop-suffix "*" (s-chop-prefix "*" name)))
-             (buffer (make-term clean-name shell-file-name)))
-        (with-current-buffer buffer
-          (term-mode)
-          (term-char-mode)
-          (switch-to-buffer (current-buffer)))))))
+     (t ;; otherwise we need to create it
+      (switch-to-buffer (views--make-term clean-name path)))))
 
   ;; restore width and height if saved
   (when-let ((width (views--view-width view)))
