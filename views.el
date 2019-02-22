@@ -316,13 +316,15 @@ Currently saves:
 ;; interface ;;
 ;;;;;;;;;;;;;;;
 
-(defun views-push ()
-  "Save the current window view."
-  (interactive)
+(defun views-push (&optional arg)
+  "Save the current window view.
+Given a prefix-argument, overwrite a name if it is already in
+use."
+  (interactive "P")
   (let* ((views (ht-keys (views--load-views)))
          (name (completing-read "View name: " views))
          (view (views--current-view)))
-    (if (member name views)
+    (if (and (not arg) (member name views))
         (message "that name is already in use")
       (views--add name view))))
 
