@@ -5,7 +5,7 @@
 ;; Author: Jens Christian Jensen <jensecj@gmail.com>
 ;; Keywords: views, workgroups, windows
 ;; Package-Version: 20190303
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "25.1") (dash "2.14.1") (s "1.12.0") (f "0.20.0") (ht "2.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -224,22 +224,22 @@ Currently saves:
 
 (defun views--make-term (name path)
   "Create a terminal buffer with NAME and working directory PATH."
-  (cond
-   ;; create a term with multi-term is possible
-   ((fboundp #'multi-term)
-    (let ((default-directory path)
-          (term-buffer (multi-term-get-buffer)))
-      (setq multi-term-buffer-list (nconc multi-term-buffer-list (list term-buffer)))
-      (with-current-buffer term-buffer
+  (let ((default-directory path)
+        (term-buffer))
+    (with-temp-buffer
+      (cd path)
+      (setq term-buffer (make-term name shell-file-name))
+      (set-buffer term-buffer)
+      (cond
+       ;; use multi-term is available
+       ((fboundp #'multi-term)
         (multi-term-internal)
-        (current-buffer))))
-   (t ;; otherwise use term.el functionality
-    (let ((default-directory path)
-          (term-buffer (make-term name shell-file-name)))
-      (with-current-buffer term-buffer
+        (setq multi-term-buffer-list (nconc multi-term-buffer-list (list term-buffer))))
+       (t ;; otherwise use term.el
         (term-mode)
-        (term-char-mode)
-        (current-buffer))))))
+        (term-char-mode)))
+
+      term-buffer)))
 
 (defun views--restore-term (view)
   "Restore terminal stored in VIEW."
