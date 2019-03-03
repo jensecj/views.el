@@ -3,6 +3,7 @@
 ;; Copyright (C) 2019 Jens Christian Jensen
 
 ;; Author: Jens Christian Jensen <jensecj@gmail.com>
+;; URL: http://github.com/jensecj/views.el
 ;; Keywords: views, workgroups, windows
 ;; Package-Version: 20190303
 ;; Version: 0.1.2
@@ -35,6 +36,7 @@
 (require 'f)
 (require 'ht)
 (require 's)
+(require 'subr-x)
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; persisting views ;;
@@ -100,7 +102,7 @@
   (ht-get view :height))
 
 (defun views--view-subwindows (view)
-  "Get the subwindows stored in split window VIEW"
+  "Get the subwindows stored in split window VIEW."
   (ht-get view :subwindows))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -140,7 +142,7 @@
     (ignore-errors (window-resize window delta))))
 
 (defun views--collect-window-info (win)
-  "Collect information to save about buffer BUF.
+  "Collect information about WIN to save.
 
 Currently saves:
 - What the buffer is visiting.
@@ -174,7 +176,7 @@ Currently saves:
           (:height (views--get-window-height win)))))))
 
 (defun views--parse-window-tree (wt)
-  "Construct a view from a window-tree."
+  "Construct a view from a window tree WT."
   ;; if the window-tree is a cons-pair, it is split into multiple windows, and
   ;; we need to figure out what they are.
   (if (consp wt)
