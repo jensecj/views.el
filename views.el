@@ -128,7 +128,7 @@
          (percent-width (floor (* total-width percent)))
          (cur-win-width (window-width window))
          (delta (- percent-width cur-win-width)))
-    (window-resize window delta t)))
+    (ignore-errors (window-resize window delta t))))
 
 (defun views--set-window-height (window percent)
   "Set the height of WINDOW from FRAME to PERCENT."
@@ -137,7 +137,7 @@
          (percent-height (floor (* total-height percent)))
          (cur-win-height (window-height window))
          (delta (- percent-height cur-win-height)))
-    (window-resize window delta)))
+    (ignore-errors (window-resize window delta))))
 
 (defun views--collect-window-info (win)
   "Collect information to save about buffer BUF.
