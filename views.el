@@ -205,6 +205,12 @@ dead buffer, and should return a buffer.")
 ;; restoration ;;
 ;;;;;;;;;;;;;;;;;
 
+;; FIXME: if a buffer is saved with a deduplicated name, e.g. "dir/filename.ext"
+;; instead of just "filename.ext", and then the reason for the deduplication
+;; disappears (i.e. the other file with a similar name is closed), then the file
+;; will just show up with the buffer-name "filename.ext", and frameset will not
+;; be able to find it, and it will not restore the buffer in the correct
+;; position.
 (defun views--restore-frameset (frameset)
   "Restore FRAMESET in the current frame."
   (frameset-restore frameset
