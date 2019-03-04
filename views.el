@@ -6,7 +6,7 @@
 ;; URL: http://github.com/jensecj/views.el
 ;; Keywords: views, workgroups, windows
 ;; Package-Version: 20190304
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "25.1") (dash "2.14.1") (s "1.12.0") (f "0.20.0") (ht "2.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -97,7 +97,7 @@
 
 (defun views--collect-buffer-info (buf)
   "Collect information about WIN to save."
-  (with-current-buffer (get-buffer buf)
+  (with-current-buffer buf
     (cond
      ((buffer-file-name)
       `((type . file)
@@ -117,9 +117,10 @@
 
 (defun views--window-tree-buffers (wt)
   "Return all buffers open in the `window-tree' WT."
-  (if (consp wt)
-      (-flatten (-map #'views--window-tree-buffers (cddr wt)))
-    (with-current-buffer (window-buffer wt) (current-buffer))))
+  (-flatten
+   (if (consp wt)
+       (-map #'views--window-tree-buffers (cddr wt))
+     (with-current-buffer (window-buffer wt) (current-buffer)))))
 
 (defun views--frame-buffers (frame)
   "Return all buffers open in FRAME."
