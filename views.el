@@ -216,13 +216,11 @@ dead buffer, and should return a buffer.")
 (defun views--restore-point (alist)
   "Restore position of `point' if stored in ALIST."
   (when-let ((p (alist-get 'point alist)))
-    (message "restoring point!")
     (goto-char p)))
 
 (defun views--restore-window-start (alist)
   "Restore position of `window-start' if stored in ALIST."
   (when-let ((s (alist-get 'window-start alist)))
-    (message "restoring window-start!")
     (set-window-start (selected-window) s)))
 
 (defun views--resurrect-and-restore-buffers (descriptions)
