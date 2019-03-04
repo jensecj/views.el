@@ -45,12 +45,6 @@
 (defvar views-file (concat user-emacs-directory "views.el")
   "File used for saving views to disk.")
 
-(defvar views-collect-functions '()
-  "Given a buffer, return a key-value-pair.")
-
-(defvar views-restore-functions '()
-  "Given a buffer and map, do something.")
-
 (defun views--save-views (views)
   "Save VIEWS to `views-file'."
   (unless (f-exists-p views-file)
@@ -83,6 +77,16 @@
 ;; info collection ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
+(defvar views-collect-functions '()
+  "Functions are called with the buffer to collect information
+from as an argument, and are expected to return a single or a
+list of key-value-pairs.")
+
+(defvar views-restore-functions '()
+  "Functions are called with an alist of saved information about
+the restored buffer.  The restored buffer is also the current
+buffer for the function call.")
+
 (defun views--collect-buffer (buf)
   "Return information collected about BUF from all
 `views-collect-functions'."
@@ -100,7 +104,6 @@
     `((type . dired)
       (path . ,default-directory)
       (point . ,(point)))))
-(add-to-list 'views-collect-functions #'views--collect-dired-buffer)
 
 (defun views--collect-term-buffer (buf)
   "Return information if BUF is a terminal buffer."
@@ -108,7 +111,6 @@
     `((type . term)
       (name . ,(buffer-name))
       (path . ,default-directory))))
-(add-to-list 'views-collect-functions #'views--collect-term-buffer)
 
 (defun views--collect-file-buffer (buf)
   "Return information if BUF is a file-visiting buffer."
@@ -117,7 +119,6 @@
       (path . ,(buffer-file-name))
       (point . ,(point))
       (window-start . ,(window-start)))))
-(add-to-list 'views-collect-functions #'views--collect-file-buffer)
 
 (defun views--window-tree-buffers (wt)
   "Return all buffers open in the `window-tree' WT."
@@ -213,13 +214,11 @@
   (when-let ((p (alist-get 'point alist)))
     (message "restoring point!")
     (goto-char p)))
-(add-to-list 'views-restore-functions #'views--buffers-restore-point)
 
 (defun views--buffers-restore-window-start (alist)
   (when-let ((s (alist-get 'window-start alist)))
     (message "restoring window-start!")
     (set-window-start (selected-window) s)))
-(add-to-list 'views-restore-functions #'views--buffers-restore-window-start)
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME."
@@ -236,7 +235,7 @@
 ;; interface ;;
 ;;;;;;;;;;;;;;;
 
-;; ###autoload
+;;;###autoload
 (defun views-push (&optional force)
   "Save the current window view.
 Given a prefix-argument FORCE, overwrite a name if it is already in
@@ -266,6 +265,22 @@ use."
     (when view
       (views--set-view view))))
 
+(-map
+ (lambda (fn)
+   (unless (member fn views-collect-functions)
+     (add-to-list 'views-collect-functions fn)))
+ (list
+  #'views--collect-file-buffer
+  #'views--collect-term-buffer
+  #'views--collect-dired-buffer))
+
+(-map
+ (lambda (fn)
+   (unless (member fn views-restore-functions)
+     (add-to-list 'views-restore-functions fn)))
+ (list
+  #'views--buffers-restore-point
+  #'views--buffers-restore-window-start))
 
 
 ;; TODO: save remote files
