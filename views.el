@@ -97,9 +97,15 @@ dead buffer, and should return a buffer.")
 (defun views--collect-dired-buffer (buf)
   "Return information if BUF is a `dired' buffer."
   (when (eq major-mode 'dired-mode)
-    `((type . dired)
+    `((type . file)
       (path . ,default-directory)
       (point . ,(point)))))
+
+(defun views--collect-pdf-buffer (buf)
+  "Return information if BUF is a `pdf' buffer."
+  (when (derived-mode-p 'doc-view-mode 'pdf-view-mode)
+    `((type . file)
+      (path . ,(buffer-file-name)))))
 
 (defun views--collect-term-buffer (buf)
   "Return information if BUF is a terminal buffer."
@@ -110,7 +116,7 @@ dead buffer, and should return a buffer.")
 
 (defun views--collect-file-buffer (buf)
   "Return information if BUF is a file-visiting buffer."
-  (when (buffer-file-name)
+  (when (and (buffer-file-name) (derived-mode-p 'prog-mode 'text-mode))
     `((type . file)
       (path . ,(buffer-file-name))
       (point . ,(point))
@@ -291,6 +297,7 @@ use."
  (list
   #'views--collect-file-buffer
   #'views--collect-term-buffer
+  #'views--collect-pdf-buffer
   #'views--collect-dired-buffer))
 
 (-map
