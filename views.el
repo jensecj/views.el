@@ -24,9 +24,10 @@
 
 ;;; Commentary:
 
-;; Simple functionality for saving and restoring window configurations.
+;; Simple functionality for saving and restoring window configurations and open
+;; buffers.
 
-;; See `views--collect-buffer-info' for what information is saved for each window.
+;; See `views--collect-buffer' for what information is saved for each window.
 
 ;;; Code:
 
@@ -43,6 +44,12 @@
 
 (defvar views-file (concat user-emacs-directory "views.el")
   "File used for saving views to disk.")
+
+(defvar views-collect-functions '()
+  "Given a buffer, return a key-value-pair.")
+
+(defvar views-restore-functions '()
+  "Given a buffer and map, do something.")
 
 (defun views--save-views (views)
   "Save VIEWS to `views-file'."
@@ -72,49 +79,45 @@
     (ht-remove views name)
     (views--save-views views)))
 
-;;;;;;;;;;;;;;;
-;; accessors ;;
-;;;;;;;;;;;;;;;
-
-(defun views--view-type (view)
-  "Get the type of VIEW."
-  (alist-get 'type view))
-
-(defun views--view-path (view)
-  "Get the path of VIEW."
-  (alist-get 'path view))
-
-(defun views--view-name (view)
-  "Get the name of VIEW."
-  (alist-get 'name view))
-
-(defun views--view-point (view)
-  "Get the location of point in VIEW."
-  (alist-get 'point view))
-
 ;;;;;;;;;;;;;;;;;;;;;
 ;; info collection ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
-(defun views--collect-buffer-info (buf)
-  "Collect information about WIN to save."
+(defun views--collect-buffer (buf)
+  "Return information collected about BUF from all
+`views-collect-functions'."
   (with-current-buffer buf
-    (cond
-     ((buffer-file-name)
-      `((type . file)
-        (path . ,(buffer-file-name))
-        (point . ,(point))))
-     ((eq major-mode 'dired-mode)
-      `((type . file)
-        (path . ,default-directory)
-        (point . ,(point))))
-     ((eq major-mode 'term-mode)
-      `((type . term)
-        (name . ,(buffer-name))
-        (path . ,default-directory)))
-     (t
-      `((type . unknown)
-        (name . ,(buffer-name)))))))
+    (let ((collected))
+      (dolist (collector views-collect-functions)
+        (when-let ((result (funcall collector buf)))
+          (push result collected)))
+
+      (-flatten collected))))
+
+(defun views--collect-dired-buffer (buf)
+  "Return information if BUF is a `dired' buffer."
+  (when (eq major-mode 'dired-mode)
+    `((type . dired)
+      (path . ,default-directory)
+      (point . ,(point)))))
+(add-to-list 'views-collect-functions #'views--collect-dired-buffer)
+
+(defun views--collect-term-buffer (buf)
+  "Return information if BUF is a terminal buffer."
+  (when (eq major-mode 'term-mode)
+    `((type . term)
+      (name . ,(buffer-name))
+      (path . ,default-directory))))
+(add-to-list 'views-collect-functions #'views--collect-term-buffer)
+
+(defun views--collect-file-buffer (buf)
+  "Return information if BUF is a file-visiting buffer."
+  (when (buffer-file-name)
+    `((type . file)
+      (path . ,(buffer-file-name))
+      (point . ,(point))
+      (window-start . ,(window-start)))))
+(add-to-list 'views-collect-functions #'views--collect-file-buffer)
 
 (defun views--window-tree-buffers (wt)
   "Return all buffers open in the `window-tree' WT."
@@ -132,7 +135,7 @@
   (let* ((frame (selected-frame))
          (frameset (views--frameset frame))
          (buffers (views--frame-buffers frame))
-         (collected (-map #'views--collect-buffer-info buffers)))
+         (collected (-map #'views--collect-buffer buffers)))
     (cons collected frameset)))
 
 (defun views--frameset (frame)
@@ -158,18 +161,12 @@
                     :force-display t))
 
 (defun views--restore-file (buf)
-  "Restore file stored in VIEW."
-  (let* ((path (views--view-path buf))
-         (buffer (get-buffer path)))
+  "Restore file stored in BUF."
+  (let* ((path (alist-get 'path buf)))
     (if (not (file-exists-p path))
-        (error "File %s does not exist" path))
+        (error "File '%s' does not exist" path))
 
-    (unless buffer
-      (with-current-buffer (find-file-noselect path)
-        ;; restore point position if saved
-        (when-let ((p (views--view-point buf)))
-          (goto-char p))
-        ))))
+    (find-file-noselect path)))
 
 (defun views--make-term (name path)
   "Create a terminal buffer with NAME and working directory PATH."
@@ -183,34 +180,46 @@
        ;; use multi-term is available
        ((fboundp #'multi-term)
         (multi-term-internal)
-        (setq multi-term-buffer-list (nconc multi-term-buffer-list (list term-buffer))))
+        (setq multi-term-buffer-list (-cons* term-buffer multi-term-buffer-list)))
        (t ;; otherwise use term.el
         (term-mode)
         (term-char-mode)))
       term-buffer)))
 
-(defun views--restore-term (view)
-  "Restore terminal stored in VIEW."
-  (let* ((name (views--view-name view))
+(defun views--restore-term (buf)
+  "Restore terminal stored in BUF."
+  (let* ((name (alist-get 'name buf))
          (clean-name (s-chop-suffix "*" (s-chop-prefix "*" name)))
-         (path (views--view-path view))
+         (path (alist-get 'path buf))
          (buffer (get-buffer name)))
-    (cond
-     ;; if the terminal buffer already exists, theres nothing to do
-     (buffer buffer)
-     (t ;; otherwise we need to create it
-      (views--make-term clean-name path)))))
+    ;; if the buffer already exists, don't recreate it
+    (or buffer (views--make-term clean-name path))))
 
 (defun views--restore-buffers (buffers)
-  (dolist (b buffers)
-    (when-let ((type (views--view-type b)))
-      (cond
-       ((eq type 'file) (views--restore-file b))
-       ((eq type 'term) (views--restore-term b))
-       ((eq type 'unknown)
-        (message
-         "Views.el: Unknown buffer type for '%s', skipping restoration."
-         (alist-get 'name b)))))))
+  "Restore all buffers described in BUFFERS."
+  (dolist (alist buffers)
+    (when-let ((type (alist-get 'type alist))
+               (restored
+                (cond
+                 ((eq type 'file) (views--restore-file alist))
+                 ((eq type 'dired) (views--restore-file alist))
+                 ((eq type 'term) (views--restore-term alist)))))
+      (dolist (restorer views-restore-functions)
+        (with-current-buffer restored
+          (funcall restorer alist))))))
+
+(defun views--buffers-restore-point (alist)
+  "Restore position of point if stored in ALIST."
+  (when-let ((p (alist-get 'point alist)))
+    (message "restoring point!")
+    (goto-char p)))
+(add-to-list 'views-restore-functions #'views--buffers-restore-point)
+
+(defun views--buffers-restore-window-start (alist)
+  (when-let ((s (alist-get 'window-start alist)))
+    (message "restoring window-start!")
+    (set-window-start (selected-window) s)))
+(add-to-list 'views-restore-functions #'views--buffers-restore-window-start)
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME."
@@ -258,13 +267,10 @@ use."
       (views--set-view view))))
 
 
-;; TODO: add a way to customize the things saved from a window, maybe a list of
-;; (PRED KEY SAVE-fn RESTORE-fn)?
 
 ;; TODO: save remote files
 ;; TODO: save font size
 ;; TODO: save frame size
-;; TODO: save window-start
 
 (provide 'views)
 ;;; views.el ends here
