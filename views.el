@@ -255,5 +255,13 @@ use."
     (when view
       (views--set-view view))))
 
+
+;; TODO: add a way to customize the things saved from a window, maybe a list of
+;; (PRED KEY SAVE-fn RESTORE-fn)?
+
+;; TODO: save remote files
+;; TODO: save font size
+;; TODO: save frame size
+
 (provide 'views)
 ;;; views.el ends here
