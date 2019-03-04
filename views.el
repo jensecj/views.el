@@ -5,8 +5,8 @@
 ;; Author: Jens Christian Jensen <jensecj@gmail.com>
 ;; URL: http://github.com/jensecj/views.el
 ;; Keywords: views, workgroups, windows
-;; Package-Version: 20190303
-;; Version: 0.1.2
+;; Package-Version: 20190304
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "25.1") (dash "2.14.1") (s "1.12.0") (f "0.20.0") (ht "2.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -26,9 +26,7 @@
 
 ;; Simple functionality for saving and restoring window configurations.
 
-;; See `views--collect-window-info' for what information is saved for each window.
-
-;; TODO: restore: window locations
+;; See `views--collect-buffer-info' for what information is saved for each window.
 
 ;;; Code:
 
@@ -79,150 +77,97 @@
 
 (defun views--view-type (view)
   "Get the type of VIEW."
-  (ht-get view :type))
+  (alist-get 'type view))
 
 (defun views--view-path (view)
   "Get the path of VIEW."
-  (ht-get view :path))
+  (alist-get 'path view))
 
 (defun views--view-name (view)
   "Get the name of VIEW."
-  (ht-get view :name))
+  (alist-get 'name view))
 
 (defun views--view-point (view)
   "Get the location of point in VIEW."
-  (ht-get view :point))
+  (alist-get 'point view))
 
-(defun views--view-width (view)
-  "Get the width of window VIEW."
-  (ht-get view :width))
+;;;;;;;;;;;;;;;;;;;;;
+;; info collection ;;
+;;;;;;;;;;;;;;;;;;;;;
 
-(defun views--view-height (view)
-  "Get the height of window VIEW."
-  (ht-get view :height))
-
-(defun views--view-subwindows (view)
-  "Get the subwindows stored in split window VIEW."
-  (ht-get view :subwindows))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; window configuration ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun views--get-window-width (window)
-  "Get the width of WINDOW in FRAME, in percent."
-  (let* ((frame (window-frame window))
-         (total-width (frame-width frame))
-         (win-width (window-width window)))
-    (string-to-number (format "%.2f" (/ (float win-width) (float total-width))))))
-
-(defun views--get-window-height (window)
-  "Get the height of WINDOW in FRAME, in percent."
-  (let* ((frame (window-frame window))
-         (total-height (frame-height frame))
-         (win-height (window-height window)))
-    (string-to-number (format "%.2f" (/ (float win-height) (float total-height))))))
-
-(defun views--set-window-width (window percent)
-  "Set the width of WINDOW from FRAME to PERCENT."
-  (let* ((frame (window-frame window))
-         (total-width (frame-width frame))
-         (percent-width (floor (* total-width percent)))
-         (cur-win-width (window-width window))
-         (delta (- percent-width cur-win-width)))
-    (ignore-errors (window-resize window delta t))))
-
-(defun views--set-window-height (window percent)
-  "Set the height of WINDOW from FRAME to PERCENT."
-  (let* ((frame (window-frame window))
-         (total-height (frame-height frame))
-         (percent-height (floor (* total-height percent)))
-         (cur-win-height (window-height window))
-         (delta (- percent-height cur-win-height)))
-    (ignore-errors (window-resize window delta))))
-
-(defun views--collect-window-info (win)
-  "Collect information about WIN to save.
-
-Currently saves:
-- What the buffer is visiting.
-- Location of point in the buffer.
-- Width and height of window.
-- Open terminals"
-  (with-current-buffer (window-buffer win)
+(defun views--collect-buffer-info (buf)
+  "Collect information about WIN to save."
+  (with-current-buffer (get-buffer buf)
     (cond
-     (buffer-file-name
-      (ht (:type 'file)
-          (:path buffer-file-name)
-          (:point (point))
-          (:width (views--get-window-width win))
-          (:height (views--get-window-height win))))
+     ((buffer-file-name)
+      `((type . file)
+        (path . ,(buffer-file-name))
+        (point . ,(point))))
      ((eq major-mode 'dired-mode)
-      (ht (:type 'file)
-          (:path default-directory)
-          (:point (point))
-          (:width (views--get-window-width win))
-          (:height (views--get-window-height win))))
+      `((type . file)
+        (path . ,default-directory)
+        (point . ,(point))))
      ((eq major-mode 'term-mode)
-      (ht (:type 'term)
-          (:name (buffer-name))
-          (:path default-directory)
-          (:width (views--get-window-width win))
-          (:height (views--get-window-height win))))
+      `((type . term)
+        (name . ,(buffer-name))
+        (path . ,default-directory)))
      (t
-      (ht (:type 'buffer)
-          (:name (buffer-name))
-          (:width (views--get-window-width win))
-          (:height (views--get-window-height win)))))))
+      `((type . unknown)
+        (name . ,(buffer-name)))))))
 
-(defun views--parse-window-tree (wt)
-  "Construct a view from a window tree WT."
-  ;; if the window-tree is a cons-pair, it is split into multiple windows, and
-  ;; we need to figure out what they are.
+(defun views--window-tree-buffers (wt)
+  "Return all buffers open in the `window-tree' WT."
   (if (consp wt)
-      ;; if (car window-tree) is `t', the window is split vertically, if it is
-      ;; `nil', it is split horizontally.
-      (if (eq (car wt) t)
-          (ht (:type 'vertical) (:subwindows (-map #'views--parse-window-tree (cddr wt))))
-        (ht (:type 'horizontal) (:subwindows (-map #'views--parse-window-tree (cddr wt)))))
-    ;; if WT is not a cons-pair, it is a leaf window
-    (views--collect-window-info wt)))
+      (-flatten (-map #'views--window-tree-buffers (cddr wt)))
+    (with-current-buffer (window-buffer wt) (current-buffer))))
+
+(defun views--frame-buffers (frame)
+  "Return all buffers open in FRAME."
+  (views--window-tree-buffers (car (window-tree frame))))
 
 (defun views--current-view ()
   "Get the view for the current window."
-  (views--parse-window-tree (car (window-tree))))
+  (let* ((frame (selected-frame))
+         (frameset (views--frameset frame))
+         (buffers (views--frame-buffers frame))
+         (collected (-map #'views--collect-buffer-info buffers)))
+    (cons collected frameset)))
 
-(defun views--restore-file (view)
+(defun views--frameset (frame)
+  "Get the frameset configuration from FRAME."
+  (let ((frameset (frameset-save (list frame)))
+        (current-display (frame-parameter frame 'display)))
+
+    ;; don't store frame properties, we only want to keep the buffers and their
+    ;; sizes/locations
+    (setf (caar (elt frameset 7)) `((display . ,current-display)))
+    frameset))
+
+;;;;;;;;;;;;;;;;;
+;; restoration ;;
+;;;;;;;;;;;;;;;;;
+
+(defun views--restore-frameset (frameset)
+  "Restore FRAMESET in the current frame."
+  (frameset-restore frameset
+                    ;; restore in the current frame
+                    :reuse-frames (lambda (f) (eq f (selected-frame)))
+                    ;; on the current display
+                    :force-display t))
+
+(defun views--restore-file (buf)
   "Restore file stored in VIEW."
-  (let* ((path (views--view-path view))
+  (let* ((path (views--view-path buf))
          (buffer (get-buffer path)))
-    (cond
-     (buffer
-      ;; if a buffer visiting the file already exists, use that
-      (switch-to-buffer buffer nil 'force-same-window))
-     ((file-exists-p path)
-      ;; otherwise open the file if it exists on disk
-      (find-file path))))
+    (if (not (file-exists-p path))
+        (error "File %s does not exist" path))
 
-  ;; restore width and height if saved
-  (when-let ((width (views--view-width view)))
-    (views--set-window-width (selected-window) width))
-  (when-let ((height (views--view-height view)))
-    (views--set-window-height (selected-window) height))
-
-  ;; restore point position if saved
-  (when-let ((p (views--view-point view)))
-    (goto-char p)))
-
-(defun views--restore-buffer (view)
-  "Restore buffer stored in VIEW."
-  (switch-to-buffer (views--view-name view))
-
-  ;; restore width and height if saved
-  (when-let ((width (views--view-width view)))
-    (views--set-window-width (selected-window) width))
-  (when-let ((height (views--view-height view)))
-    (views--set-window-height (selected-window) height)))
+    (unless buffer
+      (with-current-buffer (find-file-noselect path)
+        ;; restore point position if saved
+        (when-let ((p (views--view-point buf)))
+          (goto-char p))
+        ))))
 
 (defun views--make-term (name path)
   "Create a terminal buffer with NAME and working directory PATH."
@@ -240,7 +185,6 @@ Currently saves:
        (t ;; otherwise use term.el
         (term-mode)
         (term-char-mode)))
-
       term-buffer)))
 
 (defun views--restore-term (view)
@@ -250,59 +194,21 @@ Currently saves:
          (path (views--view-path view))
          (buffer (get-buffer name)))
     (cond
-     ;; if the terminal buffer already exists, switch to it
-     (buffer (switch-to-buffer buffer))
+     ;; if the terminal buffer already exists, theres nothing to do
+     (buffer buffer)
      (t ;; otherwise we need to create it
-      (switch-to-buffer (views--make-term clean-name path)))))
+      (views--make-term clean-name path)))))
 
-  ;; restore width and height if saved
-  (when-let ((width (views--view-width view)))
-    (views--set-window-width (selected-window) width))
-  (when-let ((height (views--view-height view)))
-    (views--set-window-height (selected-window) height)))
-
-(defun views--set-view-recur (view)
-  "Set VIEW recursively."
-  (cond
-   ;; current child is a vertical split, walk children recursively
-   ((eq (views--view-type view) 'vertical)
-    (let* ((wnd1 (selected-window))
-           (wnd2 (split-window-vertically))
-           (views (views--view-subwindows view))
-           (v (pop views)))
-      (with-selected-window wnd1
-        (views--set-view-recur v))
-      (while (setq v (pop views))
-        (with-selected-window wnd2
-          (views--set-view-recur v))
-        (when views
-          (setq wnd2 (split-window-vertically))))))
-
-   ;; current child is a horizontal split, walk children recursively
-   ((eq (views--view-type view) 'horizontal)
-    (let* ((wnd1 (selected-window))
-           (wnd2 (split-window-horizontally))
-           (views (views--view-subwindows view))
-           (v (pop views)))
-      (with-selected-window wnd1
-        (views--set-view-recur v))
-      (while (setq v (pop views))
-        (with-selected-window wnd2
-          (views--set-view-recur v))
-        (when views
-          (setq wnd2 (split-window-horizontally))))))
-
-   ;; current child is a window showing a file
-   ((eq (views--view-type view) 'file)
-    (views--restore-file view))
-
-   ;; current child is a window showing a non-file buffer
-   ((eq (views--view-type view) 'buffer)
-    (views--restore-buffer view))
-
-   ;; current child is a window for a terminal
-   ((eq (views--view-type view) 'term)
-    (views--restore-term view))))
+(defun views--restore-buffers (buffers)
+  (dolist (b buffers)
+    (when-let ((type (views--view-type b)))
+      (cond
+       ((eq type 'file) (views--restore-file b))
+       ((eq type 'term) (views--restore-term b))
+       ((eq type 'unknown)
+        (message
+         "Views.el: Unknown buffer type for '%s', skipping restoration."
+         (alist-get 'name b)))))))
 
 (defun views--set-view (name)
   "Change the current window-configuration to the view of NAME."
@@ -311,25 +217,28 @@ Currently saves:
     (if view
         (let ((inhibit-message t))
           (delete-other-windows)
-          (views--set-view-recur view))
+          (views--restore-buffers (car view))
+          (views--restore-frameset (cdr view)))
       (message "view '%s' not found" name))))
 
 ;;;;;;;;;;;;;;;
 ;; interface ;;
 ;;;;;;;;;;;;;;;
 
-(defun views-push (&optional arg)
+;; ###autoload
+(defun views-push (&optional force)
   "Save the current window view.
-Given a prefix-argument, overwrite a name if it is already in
+Given a prefix-argument FORCE, overwrite a name if it is already in
 use."
   (interactive "P")
   (let* ((views (ht-keys (views--load-views)))
          (name (completing-read "View name: " views))
          (view (views--current-view)))
-    (if (and (not arg) (member name views))
+    (if (and (not force) (member name views))
         (message "that name is already in use")
       (views--add name view))))
 
+;;;###autoload
 (defun views-pop ()
   "Remove a view from saved views."
   (interactive)
@@ -337,12 +246,14 @@ use."
          (name (completing-read "Pick view: " views nil t)))
     (views--remove name)))
 
+;;;###autoload
 (defun views-switch ()
   "Switch to a saved view."
   (interactive)
-  (let* ((views (views--load-views))
+  (let* ((views (ht-keys (views--load-views)))
          (view (completing-read "Pick view: " views nil t)))
     (when view
       (views--set-view view))))
 
 (provide 'views)
+;;; views.el ends here
