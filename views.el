@@ -35,6 +35,7 @@
 (require 'ht)
 (require 's)
 (require 'subr-x)
+(require 'frameset)
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; persisting views ;;
@@ -263,6 +264,7 @@ use."
 ;; TODO: save remote files
 ;; TODO: save font size
 ;; TODO: save frame size
+;; TODO: save window-start
 
 (provide 'views)
 ;;; views.el ends here
