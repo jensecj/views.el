@@ -120,19 +120,23 @@ buffer for the function call.")
       (point . ,(point))
       (window-start . ,(window-start)))))
 
-(defun views--window-tree-buffers (wt)
-  "Return all buffers open in the `window-tree' WT."
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; window-tree / frameset parsing ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun views--window-tree-buffers (windowtree)
+  "Return all buffers open in the WINDOWTREE."
   (-flatten
-   (if (consp wt)
-       (-map #'views--window-tree-buffers (cddr wt))
-     (with-current-buffer (window-buffer wt) (current-buffer)))))
+   (if (consp windowtree)
+       (-map #'views--window-tree-buffers (cddr windowtree))
+     (with-current-buffer (window-buffer windowtree) (current-buffer)))))
 
 (defun views--frame-buffers (frame)
   "Return all buffers open in FRAME."
   (views--window-tree-buffers (car (window-tree frame))))
 
 (defun views--current-view ()
-  "Get the view for the current window."
+  "Return the view for the current window."
   (let* ((frame (selected-frame))
          (frameset (views--frameset frame))
          (buffers (views--frame-buffers frame))
@@ -140,7 +144,7 @@ buffer for the function call.")
     (cons collected frameset)))
 
 (defun views--frameset (frame)
-  "Get the frameset configuration from FRAME."
+  "Return the frameset configuration from FRAME."
   (let ((frameset (frameset-save (list frame)))
         (current-display (frame-parameter frame 'display)))
 
@@ -161,9 +165,9 @@ buffer for the function call.")
                     ;; on the current display
                     :force-display t))
 
-(defun views--restore-file (buf)
-  "Restore file stored in BUF."
-  (let* ((path (alist-get 'path buf)))
+(defun views--restore-file (desc)
+  "Restore file described in DESC."
+  (let* ((path (alist-get 'path desc)))
     (if (not (file-exists-p path))
         (error "File '%s' does not exist" path))
 
@@ -187,18 +191,18 @@ buffer for the function call.")
         (term-char-mode)))
       term-buffer)))
 
-(defun views--restore-term (buf)
-  "Restore terminal stored in BUF."
-  (let* ((name (alist-get 'name buf))
+(defun views--restore-term (desc)
+  "Restore terminal described in DESC."
+  (let* ((name (alist-get 'name desc))
          (clean-name (s-chop-suffix "*" (s-chop-prefix "*" name)))
-         (path (alist-get 'path buf))
+         (path (alist-get 'path desc))
          (buffer (get-buffer name)))
     ;; if the buffer already exists, don't recreate it
     (or buffer (views--make-term clean-name path))))
 
-(defun views--restore-buffers (buffers)
-  "Restore all buffers described in BUFFERS."
-  (dolist (alist buffers)
+(defun views--restore-buffers (descriptions)
+  "Restore all buffers described in DESCRIPTIONS."
+  (dolist (alist descriptions)
     (when-let ((type (alist-get 'type alist))
                (restored
                 (cond
@@ -210,18 +214,19 @@ buffer for the function call.")
           (funcall restorer alist))))))
 
 (defun views--buffers-restore-point (alist)
-  "Restore position of point if stored in ALIST."
+  "Restore position of `point' if stored in ALIST."
   (when-let ((p (alist-get 'point alist)))
     (message "restoring point!")
     (goto-char p)))
 
 (defun views--buffers-restore-window-start (alist)
+  "Restore position of `window-start' if stored in ALIST."
   (when-let ((s (alist-get 'window-start alist)))
     (message "restoring window-start!")
     (set-window-start (selected-window) s)))
 
 (defun views--set-view (name)
-  "Change the current window-configuration to the view of NAME."
+  "Change view to the view of NAME, restoring buffers if needed."
   (let* ((views (views--load-views))
          (view (ht-get views name)))
     (if view
