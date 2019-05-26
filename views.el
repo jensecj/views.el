@@ -106,8 +106,9 @@ dead buffer, and should return a buffer.")
 (defun views--collect-pdf-buffer (buf)
   "Return information if BUF is a `pdf' buffer."
   (when (derived-mode-p 'doc-view-mode 'pdf-view-mode)
-    `((type . file)
-      (path . ,(buffer-file-name)))))
+    `((type . pdf)
+      (path . ,(buffer-file-name))
+      (page . ,(doc-view-current-page)))))
 
 (defun views--collect-term-buffer (buf)
   "Return information if BUF is a terminal buffer."
