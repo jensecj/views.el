@@ -121,7 +121,8 @@ dead buffer, and should return a buffer.")
 
 (defun views--collect-file-buffer (buf)
   "Return information if BUF is a file-visiting buffer."
-  (when (and (buffer-file-name) (derived-mode-p 'prog-mode 'text-mode))
+  (when (and (derived-mode-p 'prog-mode 'text-mode)
+             (buffer-file-name))
     `((type . file)
       (path . ,(buffer-file-name))
       (point . ,(point))
@@ -154,14 +155,6 @@ dead buffer, and should return a buffer.")
   "Return all buffers open in FRAME."
   (views--window-tree-buffers (car (window-tree frame))))
 
-(defun views--current-view ()
-  "Return the view for the current window."
-  (let* ((frame (selected-frame))
-         (frameset (views--frameset frame))
-         (buffers (views--frame-buffers frame))
-         (collected (-map #'views--collect-buffer buffers)))
-    (cons collected frameset)))
-
 (defun views--frameset (frame)
   "Return the frameset configuration for FRAME."
   (let ((frameset (frameset-save (list frame)))
@@ -173,6 +166,14 @@ dead buffer, and should return a buffer.")
     ;; TODO: remove saved point location, and other things we don't really want
     ;; to save.
     frameset))
+
+(defun views--current-view ()
+  "Return the view for the current window."
+  (let* ((frame (selected-frame))
+         (frameset (views--frameset frame))
+         (buffers (views--frame-buffers frame))
+         (collected (-map #'views--collect-buffer buffers)))
+    (cons collected frameset)))
 
 ;;;;;;;;;;;;;;;;;;
 ;; resurrection ;;
@@ -283,6 +284,35 @@ properties."
           (views--restore-frameset (cdr view)))
       (message "view '%s' not found" name))))
 
+;;;;;;;;;;;;;;
+;; defaults ;;
+;;;;;;;;;;;;;;
+
+(defun views-setup-defaults ()
+  "Setup default collectors, resurrectors , and restorers."
+  (-map
+   (lambda (fn)
+     (add-to-list 'views-collect-functions fn))
+   '(#'views--collect-file-buffer
+     #'views--collect-term-buffer
+     #'views--collect-pdf-buffer
+     #'views--collect-dired-buffer))
+
+  (-map
+   (lambda (fn)
+     (add-to-list 'views-resurrect-functions fn))
+   '(#'views--resurrect-file
+     #'views--resurrect-term
+     #'views--resurrect-pdf))
+
+  (-map
+   (lambda (fn)
+     (add-to-list 'views-restore-functions fn))
+   '(#'views--restore-point
+     #'views--restore-window-start
+     #'views--restore-pdf-page)))
+
+
 ;;;;;;;;;;;;;;;
 ;; interface ;;
 ;;;;;;;;;;;;;;;
@@ -317,31 +347,6 @@ use."
     (when view
       (views--set-view view))))
 
-(-map
- (lambda (fn)
-   (unless (member fn views-collect-functions)
-     (add-to-list 'views-collect-functions fn)))
- (list
-  #'views--collect-file-buffer
-  #'views--collect-term-buffer
-  #'views--collect-pdf-buffer
-  #'views--collect-dired-buffer))
-
-(-map
- (lambda (fn)
-   (unless (member fn views-resurrect-functions)
-     (add-to-list 'views-resurrect-functions fn)))
- (list
-  #'views--resurrect-file
-  #'views--resurrect-term))
-
-(-map
- (lambda (fn)
-   (unless (member fn views-restore-functions)
-     (add-to-list 'views-restore-functions fn)))
- (list
-  #'views--restore-point
-  #'views--restore-window-start))
 
 ;; TODO: don't store pdf pages, but remove point (and start?) from frameset
 ;; saved, it messes emacs auto restoring the current page in the pdf
