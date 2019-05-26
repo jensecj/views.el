@@ -79,6 +79,8 @@
 ;; info collection ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
+;; TODO: add customizable type aliases, e.g. .txt/.org/etc. -> text-file
+
 (defvar views-collect-functions '()
   "Functions to collect information about buffer.
 The functions are called with the buffer to collect information
@@ -168,6 +170,8 @@ dead buffer, and should return a buffer.")
     ;; don't store frame properties, we only want to keep the buffers and their
     ;; sizes/locations
     (setf (caar (elt frameset 7)) `((display . ,current-display)))
+    ;; TODO: remove saved point location, and other things we don't really want
+    ;; to save.
     frameset))
 
 ;;;;;;;;;;;;;;;;;;
@@ -339,6 +343,8 @@ use."
   #'views--restore-point
   #'views--restore-window-start))
 
+;; TODO: don't store pdf pages, but remove point (and start?) from frameset
+;; saved, it messes emacs auto restoring the current page in the pdf
 
 ;; TODO: nuke point saving from frameset?
 ;; TODO: save remote files
