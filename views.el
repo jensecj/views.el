@@ -209,6 +209,15 @@ dead buffer, and should return a buffer.")
       ;; if the buffer already exists, don't recreate it
       (or buffer (views--make-term clean-name path)))))
 
+(defun views--resurrect-pdf (desc)
+  "Resurrect pdf-file described in DESC."
+  (when (eq 'pdf (alist-get 'type desc))
+    (let* ((path (alist-get 'path desc)))
+      (if (not (file-exists-p path))
+          (error "File '%s' does not exist" path))
+
+      (find-file-noselect path))))
+
 ;;;;;;;;;;;;;;;;;
 ;; restoration ;;
 ;;;;;;;;;;;;;;;;;
@@ -237,15 +246,25 @@ dead buffer, and should return a buffer.")
   (when-let ((s (alist-get 'window-start alist)))
     (set-window-start (selected-window) s)))
 
+(defun views--restore-pdf-page (alist)
+  "Restore position of `point' if stored in ALIST."
+  (when (eq 'pdf (alist-get 'type alist))
+    (when-let ((p (alist-get 'page alist)))
+      (if (fboundp #'pdf-view-goto-page)
+          (pdf-view-goto-page p)
+        (doc-view-goto-page p)))))
+
 (defun views--resurrect-and-restore-buffers (descriptions)
   "Resurrect buffers described in DESCRIPTIONS, and restore their
 properties."
-  (dolist (alist descriptions)
-    (when-let ((type (alist-get 'type alist))
-               (restored (-some (lambda (fn) (funcall fn alist)) views-resurrect-functions)))
+  (dolist (desc descriptions)
+    (when-let ((type (alist-get 'type desc))
+               ;; TODO: what happens if multiple things are ressurected from a
+               ;; single description?
+               (restored-buffer (-some (lambda (fn) (funcall fn desc)) views-resurrect-functions)))
       (dolist (restorer views-restore-functions)
-        (with-current-buffer restored
-          (funcall restorer alist))))))
+        (with-current-buffer restored-buffer
+          (funcall restorer desc))))))
 
 (defun views--set-view (name)
   "Change view to the view of NAME, restoring buffers if needed."
