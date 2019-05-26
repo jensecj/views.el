@@ -60,7 +60,7 @@
       (with-temp-buffer
         (insert-file-contents views-file)
         (or (read (current-buffer)) (ht)))
-    (message "views file '%s' not found" views-file)
+    (message "views.el: `views-file' '%s' not found" views-file)
     (ht)))
 
 (defun views--add (name view)
@@ -99,7 +99,7 @@ dead buffer, and should return a buffer.")
 (defun views--collect-dired-buffer (buf)
   "Return information if BUF is a `dired' buffer."
   (when (eq major-mode 'dired-mode)
-    `((type . file)
+    `((type . file)                     ; dired buffers are visited just like file-buffers
       (path . ,default-directory)
       (point . ,(point)))))
 
@@ -142,7 +142,8 @@ dead buffer, and should return a buffer.")
 (defun views--window-tree-buffers (windowtree)
   "Return all buffers open in the WINDOWTREE."
   (-flatten
-   (if (consp windowtree)
+   (if (consp windowtree)               ; if the window tree is a cons pair it
+                                        ; has children, parse them recursively
        (-map #'views--window-tree-buffers (cddr windowtree))
      (with-current-buffer (window-buffer windowtree) (current-buffer)))))
 
