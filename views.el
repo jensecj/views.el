@@ -47,6 +47,8 @@
 
 (defun views--save-views (views)
   "Save VIEWS to `views-file'."
+  (unless (f-exists-p (f-dirname views-file))
+    (f-mkdir (f-dirname views-file)))
   (unless (f-exists-p views-file)
     (f-touch views-file))
   (with-temp-file views-file
