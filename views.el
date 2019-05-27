@@ -293,25 +293,24 @@ properties."
   (-map
    (lambda (fn)
      (add-to-list 'views-collect-functions fn))
-   '(#'views--collect-file-buffer
-     #'views--collect-term-buffer
-     #'views--collect-pdf-buffer
-     #'views--collect-dired-buffer))
+   '(views--collect-file-buffer
+     views--collect-term-buffer
+     views--collect-pdf-buffer
+     views--collect-dired-buffer))
 
   (-map
    (lambda (fn)
      (add-to-list 'views-resurrect-functions fn))
-   '(#'views--resurrect-file
-     #'views--resurrect-term
-     #'views--resurrect-pdf))
+   '(views--resurrect-file
+     views--resurrect-term
+     views--resurrect-pdf))
 
   (-map
    (lambda (fn)
      (add-to-list 'views-restore-functions fn))
-   '(#'views--restore-point
-     #'views--restore-window-start
-     #'views--restore-pdf-page)))
-
+   '(views--restore-point
+     views--restore-window-start
+     views--restore-pdf-page)))
 
 ;;;;;;;;;;;;;;;
 ;; interface ;;
