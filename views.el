@@ -5,8 +5,8 @@
 ;; Author: Jens Christian Jensen <jensecj@gmail.com>
 ;; URL: http://github.com/jensecj/views.el
 ;; Keywords: views, workgroups, windows
-;; Package-Version: 20190304
-;; Version: 0.3.0
+;; Package-Version: 20190527
+;; Version: 0.3.1
 ;; Package-Requires: ((emacs "25.1") (dash "2.14.1") (s "1.12.0") (f "0.20.0") (ht "2.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
