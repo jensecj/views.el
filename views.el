@@ -38,12 +38,28 @@
 (require 'subr-x)
 (require 'frameset)
 
+(defvar views-file (concat user-emacs-directory "views.el")
+  "File used for saving views to disk.")
+
+(defvar views-collect-functions '()
+  "Functions to collect information about a buffer.
+The functions are called with the buffer to collect information
+from as an argument, and should return an alist.")
+
+(defvar views-restore-functions '()
+  "Functions to restore properties of a buffer.
+The functions are called with an alist of saved information about
+the restored buffer.  The restored buffer is the current buffer
+for the function call.")
+
+(defvar views-resurrect-functions '()
+  "Functions to resurrect a buffer.
+The functions are called with an alist of information about the
+dead buffer, and should return a buffer.")
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; persisting views ;;
 ;;;;;;;;;;;;;;;;;;;;;;
-
-(defvar views-file (concat user-emacs-directory "views.el")
-  "File used for saving views to disk.")
 
 (defun views--save-views (views)
   "Save VIEWS to `views-file'."
@@ -80,23 +96,6 @@
 ;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: add customizable type aliases, e.g. .txt/.org/etc. -> text-file
-
-(defvar views-collect-functions '()
-  "Functions to collect information about buffer.
-The functions are called with the buffer to collect information
-from as an argument, and should return a single or a list of
-key-value-pairs.")
-
-(defvar views-restore-functions '()
-  "Functions to restore properties of a buffer.
-The functions are called with an alist of saved information about
-the restored buffer.  The restored buffer is also the current
-buffer for the function call.")
-
-(defvar views-resurrect-functions '()
-  "Functions to resurrect buffers.
-The functions are called with an alist of information about the
-dead buffer, and should return a buffer.")
 
 (defun views--collect-dired-buffer (buf)
   "Return information if BUF is a `dired' buffer."
