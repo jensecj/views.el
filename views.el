@@ -41,18 +41,25 @@
 (defvar views-file (concat user-emacs-directory "views.el")
   "File used for saving views to disk.")
 
-(defvar views-collect-functions '()
+(defvar views-collect-functions '(views--collect-file-buffer
+                                  views--collect-term-buffer
+                                  views--collect-pdf-buffer
+                                  views--collect-dired-buffer)
   "Functions to collect information about a buffer.
 The functions are called with the buffer to collect information
 from as an argument, and should return an alist.")
 
-(defvar views-restore-functions '()
+(defvar views-restore-functions '(views--restore-point
+                                  views--restore-window-start
+                                  views--restore-pdf-page)
   "Functions to restore properties of a buffer.
 The functions are called with an alist of saved information about
 the restored buffer.  The restored buffer is the current buffer
 for the function call.")
 
-(defvar views-resurrect-functions '()
+(defvar views-resurrect-functions '(views--resurrect-file
+                                    views--resurrect-term
+                                    views--resurrect-pdf)
   "Functions to resurrect a buffer.
 The functions are called with an alist of information about the
 dead buffer, and should return a buffer.")
@@ -234,6 +241,7 @@ dead buffer, and should return a buffer.")
 ;; will just show up with the buffer-name "filename.ext", and frameset will not
 ;; be able to find it, and it will not restore the buffer in the correct
 ;; position.
+
 (defun views--restore-frameset (frameset)
   "Restore FRAMESET in the current frame."
   (frameset-restore frameset
@@ -282,34 +290,6 @@ properties."
           (views--resurrect-and-restore-buffers (car view))
           (views--restore-frameset (cdr view)))
       (message "view '%s' not found" name))))
-
-;;;;;;;;;;;;;;
-;; defaults ;;
-;;;;;;;;;;;;;;
-
-(defun views-setup-defaults ()
-  "Setup default collectors, resurrectors , and restorers."
-  (-map
-   (lambda (fn)
-     (add-to-list 'views-collect-functions fn))
-   '(views--collect-file-buffer
-     views--collect-term-buffer
-     views--collect-pdf-buffer
-     views--collect-dired-buffer))
-
-  (-map
-   (lambda (fn)
-     (add-to-list 'views-resurrect-functions fn))
-   '(views--resurrect-file
-     views--resurrect-term
-     views--resurrect-pdf))
-
-  (-map
-   (lambda (fn)
-     (add-to-list 'views-restore-functions fn))
-   '(views--restore-point
-     views--restore-window-start
-     views--restore-pdf-page)))
 
 ;;;;;;;;;;;;;;;
 ;; interface ;;
