@@ -333,6 +333,7 @@ use."
 ;; TODO: save remote files
 ;; TODO: save font size
 ;; TODO: save frame size
+;; TODO: enable keeping views in an encrypted file
 
 (provide 'views)
 ;;; views.el ends here
