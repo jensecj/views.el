@@ -275,7 +275,9 @@ properties."
     (when-let ((type (alist-get 'type desc))
                ;; TODO: what happens if multiple things are ressurected from a
                ;; single description?
-               (restored-buffer (-some (lambda (fn) (funcall fn desc)) views-resurrect-functions)))
+               (restored-buffer (-some
+                                 (lambda (fn) (funcall fn desc))
+                                 views-resurrect-functions)))
       (dolist (restorer views-restore-functions)
         (with-current-buffer restored-buffer
           (funcall restorer desc))))))

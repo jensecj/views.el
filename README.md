@@ -2,14 +2,14 @@ A simple way to switch between different views of buffers.
 
 `Views.el` tries to restore buffers in their correct location, with their right
 sizes, and with the point where you left it. It'll also reopen terminals, and is
-easily extendable.
+easy to extend.
 
 <p align="center">
 <img src="screencast.gif?raw=true">
 </p>
 
 Save the current view with `(views-push)`, remove a view with `(views-pop)`, and
-switch to another view with `(views-switch)`.
+switch to a view with `(views-switch)`.
 
 Views are saved in `views-file`.
 
